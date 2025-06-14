@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import { supabase, Room, Player, Placement, Template } from '../lib/supabase';
+import { supabase, Room, Player, Placement, Template, Profile } from '../lib/supabase';
 
 export interface GameState {
   // Current game state
   currentRoom: Room | null;
   currentPlayer: Player | null;
+  currentProfile: Profile | null;
   players: Player[];
   placements: Placement[];
   templates: Template[];
@@ -21,7 +22,8 @@ export interface GameState {
   createRoom: () => Promise<void>;
   joinRoom: (roomId: string) => Promise<void>;
   loadTemplates: () => Promise<void>;
-  subscribeToPlacements: (roomId: string) => void;
+  loadProfile: () => Promise<void>;
+  subscribeToPlacements: (roomId: string) => () => void;
   addPlacement: (placement: Omit<Placement, 'id' | 'placed_at'>) => Promise<void>;
   nextTurn: () => Promise<void>;
   setError: (error: string | null) => void;
@@ -32,6 +34,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Initial state
   currentRoom: null,
   currentPlayer: null,
+  currentProfile: null,
   players: [],
   placements: [],
   templates: [],
@@ -45,13 +48,39 @@ export const useGameStore = create<GameState>((set, get) => ({
   
   setSelectedPart: (part) => set({ selectedPart: part }),
 
+  loadProfile: async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      set({ currentProfile: profile });
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+    }
+  },
+
   createRoom: async () => {
     try {
       set({ isLoading: true, error: null });
       
-      // Sign in anonymously
-      const { data: authData } = await supabase.auth.signInAnonymously();
-      if (!authData.user) throw new Error('Failed to authenticate');
+      // Check if user is already authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // Sign in anonymously if not authenticated
+        const { data: authData } = await supabase.auth.signInAnonymously();
+        if (!authData.user) throw new Error('Failed to authenticate');
+      }
+
+      // Load profile if authenticated
+      await get().loadProfile();
 
       // Create room
       const { data: room, error: roomError } = await supabase
@@ -62,14 +91,22 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       if (roomError) throw roomError;
 
+      // Get current user again (might have changed)
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error('User not found');
+
+      // Get nickname from profile or use default
+      const { currentProfile } = get();
+      const displayName = currentProfile?.nickname || `Player 1`;
+
       // Create player
       const { data: player, error: playerError } = await supabase
         .from('players')
         .insert({
           room_id: room.id,
-          display_name: `Player 1`,
+          display_name: displayName,
           turn_order: 1,
-          user_id: authData.user.id
+          user_id: currentUser.id
         })
         .select()
         .single();
@@ -94,9 +131,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      // Sign in anonymously
-      const { data: authData } = await supabase.auth.signInAnonymously();
-      if (!authData.user) throw new Error('Failed to authenticate');
+      // Check if user is already authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // Sign in anonymously if not authenticated
+        const { data: authData } = await supabase.auth.signInAnonymously();
+        if (!authData.user) throw new Error('Failed to authenticate');
+      }
+
+      // Load profile if authenticated
+      await get().loadProfile();
 
       // Get room
       const { data: room, error: roomError } = await supabase
@@ -116,14 +161,22 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       const nextTurnOrder = (existingPlayers?.length || 0) + 1;
 
+      // Get current user again (might have changed)
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error('User not found');
+
+      // Get nickname from profile or use default
+      const { currentProfile } = get();
+      const displayName = currentProfile?.nickname || `Player ${nextTurnOrder}`;
+
       // Create player
       const { data: player, error: playerError } = await supabase
         .from('players')
         .insert({
           room_id: roomId,
-          display_name: `Player ${nextTurnOrder}`,
+          display_name: displayName,
           turn_order: nextTurnOrder,
-          user_id: authData.user.id
+          user_id: currentUser.id
         })
         .select()
         .single();

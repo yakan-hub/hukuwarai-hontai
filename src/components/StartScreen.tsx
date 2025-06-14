@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '../store/gameStore';
-import { Play, Users, Sparkles } from 'lucide-react';
+import { Play, Users, Sparkles, UserPlus } from 'lucide-react';
 
 export const StartScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -10,6 +10,10 @@ export const StartScreen: React.FC = () => {
   const handleStart = async () => {
     await createRoom();
     navigate('/template');
+  };
+
+  const handleRegister = () => {
+    navigate('/register');
   };
 
   return (
@@ -46,23 +50,35 @@ export const StartScreen: React.FC = () => {
             </div>
           )}
 
-          <button
-            onClick={handleStart}
-            disabled={isLoading}
-            className="w-full bg-gradient-to-r from-orange-500 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold text-lg
-                     hover:from-orange-600 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200
-                     disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-                     flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
-          >
-            {isLoading ? (
-              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <Play className="w-6 h-6" />
-                <span>Start Game</span>
-              </>
-            )}
-          </button>
+          <div className="space-y-4">
+            <button
+              onClick={handleStart}
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-orange-500 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold text-lg
+                       hover:from-orange-600 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200
+                       disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                       flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
+            >
+              {isLoading ? (
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Play className="w-6 h-6" />
+                  <span>Start Game</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={handleRegister}
+              className="w-full bg-white text-purple-600 py-4 px-6 rounded-xl font-semibold text-lg border-2 border-purple-200
+                       hover:bg-purple-50 hover:border-purple-300 transform hover:scale-[1.02] transition-all duration-200
+                       flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
+            >
+              <UserPlus className="w-6 h-6" />
+              <span>Create Account</span>
+            </button>
+          </div>
 
           {/* Game Rules */}
           <div className="mt-8 pt-6 border-t border-gray-100">

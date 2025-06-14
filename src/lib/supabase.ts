@@ -46,3 +46,9 @@ export interface Template {
   image_url: string;
   created_at: string;
 }
+
+export interface Profile {
+  id: string;
+  nickname: string;
+  created_at: string;
+}
